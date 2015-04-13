@@ -80,8 +80,8 @@ class L20nParser():
         self._patterns = {
             'identifier': re.compile(r'[A-Za-z_]\w*'),
             'controlChars': re.compile(r'\\([\\\"\'{}])'),
-            'unicode': re.compile(r'\\u([0-9a-fA-F]{1,4})'),
-            'index': re.compile(r'@cldr\.plural\((\w+)\)'),
+            'unicode': re.compile(r'\\u[0-9a-fA-F]{1,4}'),
+            'index': re.compile(r'@cldr\.plural\(\$?(\w+)\)'),
             'placeables': re.compile(r'\{\{\s*([^\s]*?)\s*\}\}'),
         }
 
@@ -106,18 +106,14 @@ class L20nParser():
                 raise self.error('Expected ">"')
         return attrs
 
-    def getKVP(self, type):
+    def getKVP(self):
         key = self.getIdentifier()
         self.getWS()
         if self._source[self._index] != ':':
             raise self.error('Expected ":"')
         self._index += 1
         self.getWS()
-        return {
-            'type': type,
-            'key': key,
-            'value': self.getValue()
-        }
+        return [key, self.getValue()]
 
     def getKVPWithIndex(self, type=None):
         key = self.getIdentifier()
@@ -126,54 +122,45 @@ class L20nParser():
         if self._source[self._index] == '[':
             self._index += 1
             self.getWS()
-            index = self.getItemList(self.getExpression, ']')
+            index = self.getIndex()
         self.getWS()
         if self._source[self._index] != ':':
             raise self.error('Expected ":"')
         self._index += 1
         self.getWS()
-        return {
-            'type': type,
-            'key': key,
-            'value': self.getValue(),
-            'index': index
-        }
+        return [key, self.getValue(False, None, index)]
 
     def getHash(self):
         self._index += 1
         self.getWS()
-        hasDefItem = False
-        hash = []
+        hi = None
+        comma = None
+        hash = {}
+
         while True:
-            defItem = False
-            if self._source[self._index] == '*':
-                self._index += 1
-                if hasDefItem:
-                    raise self.error('Default item redefinition forbidden')
-                defItem = True
-                hasDefItem = True
-            hi = self.getKVP('HashItem')
-            hi['default'] = defItem
-            hash.append(hi)
+            hi = self.getKVP()
+            hash[hi[0]] = hi[1]
             self.getWS()
 
             comma = self._source[self._index] == ','
+
             if comma:
                 self._index += 1
                 self.getWS()
+
             if self._source[self._index] == '}':
                 self._index += 1
                 break
             if not comma:
                 raise self.error('Expected "}"')
-        return {
-            'type': 'Hash',
-            'content': hash
-        }
+
+        return hash
 
     def unescapeString(self, str):
         str = re.sub(self._patterns['controlChars'], lambda m: m.group(1), str)
-        return str
+
+        # only supports \uXXXX, not \uXXX or shorter
+        return str.decode('unicode-escape')
 
     def getString(self, opchar):
         opchar_pos = self._source.find(opchar, self._index + 1)
@@ -198,7 +185,7 @@ class L20nParser():
             return self.parseString(buf)
         return buf
 
-    def getValue(self, optional, ch=None, index=None):
+    def getValue(self, optional=False, ch=None, index=None):
         if ch is None:
             if self._length > self._index:
                 ch = self._source[self._index]
@@ -306,7 +293,12 @@ class L20nParser():
         return ast
 
     def getIndex(self):
-        pass
+        self.getWS()
+        match = self._patterns['index'].match(self._source[self._index:])
+        self._index += len(match.group(0))
+        self.getWS()
+        self._index += 1
+        return [{'t': 'idOrVar', 'v': 'plural'}, match.group(1)]
 
     def parseString(self, str):
         return str
