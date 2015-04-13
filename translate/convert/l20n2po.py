@@ -15,9 +15,22 @@ class l20n2po:
     def __init__(self, blankmsgstr=False, duplicatestyle="msgctxt"):
         pass
 
+    def convertl20nunit(self, store, unit):
+        po_unit = po.pounit(encoding="UTF-8")
+        po_unit.source = unit.source
+        po_unit.setid(unit.getid())
+        return po_unit
+
     def convertstore(self, l20n_store):
         """converts a .l20n file to a .po file..."""
         target_store = po.pofile()
+        targetheader = target_store.header()
+        targetheader.addnote("extracted from %s" % l20n_store.filename,
+                             "developer")
+        l20n_store.makeindex()
+        for l20nunit in l20n_store.units:
+            pounit = self.convertl20nunit(l20n_store, l20nunit)
+            target_store.addunit(pounit)
         return target_store
         
 
