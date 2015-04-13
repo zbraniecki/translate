@@ -1,4 +1,3 @@
-import string
 import re
 from translate.storage import base
 
@@ -79,7 +78,11 @@ class ParserError(Exception):
 class L20nParser():
     def __init__(self):
         self._patterns = {
-            'identifier': re.compile('[A-Za-z_]\w*')
+            'identifier': re.compile(r'[A-Za-z_]\w*'),
+            'controlChars': re.compile(r'\\([\\\"\'{}])'),
+            'unicode': re.compile(r'\\u([0-9a-fA-F]{1,4})'),
+            'index': re.compile(r'@cldr\.plural\((\w+)\)'),
+            'placeables': re.compile(r'\{\{\s*([^\s]*?)\s*\}\}'),
         }
 
     def parse(self, string):
@@ -169,79 +172,31 @@ class L20nParser():
         }
 
     def unescapeString(self, str):
+        str = re.sub(self._patterns['controlChars'], lambda m: m.group(1), str)
         return str
 
     def getString(self, opchar):
-        buf = ""
-        body = []
-        oplen = len(opchar)
+        opchar_pos = self._source.find(opchar, self._index + 1)
 
-        self._index += oplen
+        while opchar_pos != -1 and \
+            ord(self._source[opchar_pos - 1]) == 92 and \
+            ord(self._source[opchar_pos - 2]) != 92:
+            opchar_pos = self._source.find(opchar, opchar_pos + 1)
 
-        while True:
-            ch = self._source[self._index]
-            # unescape
-            if ch == '\\':
-                self._index += 1
-                ch2 = self._source[self._index]
-                if ch2 == 'u':
-                    # unescape unicode \uXXXX chars
-                    buf += unichr(int(self._source[self._index+1:self._index+5], 16))
-                    self._index += 5
-                else:
-                    #otherwise just take the next char
-                    buf += ch2
-                    self._index += 1
-                ch = self._source[self._index]
-            # expression
-            if ch == '{':
-                if self._source[self._index+1] == '{':
-                    if len(buf):
-                        body.append({
-                            'type': 'String',
-                            'content': buf
-                        })
-                        buf = ""
-                    self._index += 2
-                    self.getWS()
-                    body.append(self.getExpression())
-                    self.getWS()
-                    self._index += 2
-                    ch = self._source[self._index]
-            # close string, depending on if oplen is 1 or 3
-            if oplen == 1:
-                if ch == opchar:
-                    self._index += oplen
-                    break
-            else:
-                if self._source[self._index:self._index+3] == opchar:
-                    self._index += oplen
-                    break
-            # or just add a char to a buffer
-            buf += ch
-            self._index += 1
-            if self._index >= self._length:
-                raise self.error('Unclosed string literal')
-                break
+        if opchar_pos == -1:
+            raise self.error('Unclosed string literal')
 
-        if len(buf):
-            if len(body):
-                # if there's body and a leftover, add the leftover
-                body.append({
-                    'type': 'String',
-                    'content': buf
-                })
-            else:
-                # otherwise return it as a simple string
-                return {
-                    'type': 'String',
-                    'content': buf
-                }
-        # if not returned as a simple string, return ComplexString
-        return {
-            'type': 'ComplexString',
-            'content': body
-        }
+        buf = self._source[self._index + 1: opchar_pos]
+
+        self._index = opchar_pos + 1
+
+        # bug in js code?
+        if buf.find('\\') != -1:
+            buf = self.unescapeString(buf)
+
+        if buf.find('{{') != -1:
+            return self.parseString(buf)
+        return buf
 
     def getValue(self, optional, ch=None, index=None):
         if ch is None:
