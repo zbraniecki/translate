@@ -6,56 +6,40 @@ class l20nunit(base.TranslationUnit):
 
     def __init__(self, source=''):
         super(l20nunit, self).__init__(source)
-        self.name = ''
+        self.id = ''
         self.value = ''
+        self.attrs = []
+        self.value_index = None
         self.source = source
         pass
 
     def getsource(self):
-        return self.value
+        return self.id
 
     def setsource(self, source):
-        self.value = source
+        self.id = source
 
     source = property(getsource, setsource)
 
     def gettarget(self):
-        return self.translation
+        return self.value
 
     def settarget(self, target):
-        self.translation = target
+        self.value = target
 
     target = property(gettarget, settarget)
 
     def getid(self):
-        pass
+        return self.id
 
-    def setid(self):
-        pass
+    def setid(self, new_id):
+        self.id = new_id
 
     def getoutput(self):
         return "%(key)s = %(value)s" % {
             'value': self.value,
-            'key': self.name
+            'key': self.id
         }
-
-    def addlocation(self, location):
-        pass
-
-    def getlocations(self):
-        return [self.name]
-
-    def addnote(self, text):
-        pass
-
-    def getnotes(self):
-        pass
-
-    def removenotes(self):
-        pass
-
-    def isblank(self):
-        pass
 
 class l20nfile(base.TranslationStore):
     UnitClass = l20nunit
@@ -74,9 +58,22 @@ class l20nfile(base.TranslationStore):
 
         for entry in ast:
             newl20n = l20nunit()
-            newl20n.name = entry['$i']
+            newl20n.id = entry['$i']
             newl20n.value = entry['$v']
+
+            if '$x' in entry:
+                newl20n.value_index = [{
+                    'type': 'idOrVal',
+                    'value': 'plural'
+                }, entry['$x'][1]]
             self.units.append(newl20n)
+
+            for key in entry.keys():
+                if key[0] != '$':
+                    self.add_attr(newl20n, key, entry[key])
+
+    def add_attr(self, unit, id, attr):
+        unit.attrs.append({'id': id, 'value': attr})
 
     def __str__(self):
         lines = []

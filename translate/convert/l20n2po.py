@@ -16,10 +16,35 @@ class l20n2po:
         pass
 
     def convertl20nunit(self, store, unit):
+        po_units = []
+
         po_unit = po.pounit(encoding="UTF-8")
-        po_unit.source = unit.source
+        po_unit.addlocation(unit.getid())
         po_unit.setid(unit.getid())
-        return po_unit
+        if unit.value_index:
+            # the value here may be a string or a hash
+            # if it's a hash it will look like this:
+            #
+            # unit.value_index - [{'type': 'idOrVal', 'value': 'plural'}, 'n']
+            # unit.value - {'one': 'value', 'many': 'value2'}
+            #
+            # I don't know how to turn it into a plural po entity
+            if unit.value_index[0]['value'] == 'plural':
+                po_unit.source = unit.value['one']
+            pass
+        else:
+            po_unit.source = unit.value
+        po_units.append(po_unit)
+
+        for attr in unit.attrs:
+            po_unit = po.pounit(encoding="UTF-8")
+
+            id = '%s.%s' % (unit.getid(), attr['id'])
+            po_unit.addlocation(id)
+            po_unit.setid(id)
+            po_unit.source = attr['value']
+            po_units.append(po_unit)
+        return po_units
 
     def convertstore(self, l20n_store):
         """converts a .l20n file to a .po file..."""
@@ -29,8 +54,9 @@ class l20n2po:
                              "developer")
         l20n_store.makeindex()
         for l20nunit in l20n_store.units:
-            pounit = self.convertl20nunit(l20n_store, l20nunit)
-            target_store.addunit(pounit)
+            pounits = self.convertl20nunit(l20n_store, l20nunit)
+            for pounit in pounits:
+                target_store.addunit(pounit)
         return target_store
         
 
