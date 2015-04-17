@@ -58,6 +58,23 @@ class l20n2po:
             for pounit in pounits:
                 target_store.addunit(pounit)
         return target_store
+
+    def mergestore(self, origl20nfile, translatedl20nfile):
+        """converts two .l20n files to a .po file..."""
+        target_store = po.pofile()
+        targetheader = target_store.header()
+        targetheader.addnote("extracted from %s, %s" % (origl20nfile.filename,
+                                                        translatedl20nfile.filename),
+                             "developer")
+        origl20nfile.makeindex()
+        for l20nunit in origl20nfile.units:
+            pounits = self.convertl20nunit(origl20nfile, l20nunit)
+            for pounit in pounits:
+                target_store.addunit(pounit)
+                if pounit.getid() in translatedl20nfile.locationindex:
+                    print('fooo')
+                    print(pounit.name)
+        return target_store
         
 
 def convertl20n(inputfile, outputfile, templatefile,
