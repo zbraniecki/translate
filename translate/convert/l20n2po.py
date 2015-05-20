@@ -27,11 +27,11 @@ class l20n2po:
             #
             # unit.value_index - [{'type': 'idOrVal', 'value': 'plural'}, 'n']
             # unit.value - {'one': 'value', 'many': 'value2'}
-            #
-            # I don't know how to turn it into a plural po entity
             if unit.value_index[0]['value'] == 'plural':
-                po_unit.source = unit.value['one']
-            pass
+                # While l20n could potentially have N forms we can only handle
+                # and only want two in Gettext. Since Gettext uses English
+                # forms we're using the same: 'one' and 'other'
+                po_unit.source = [unit.value['one'], unit.value['other']]
         else:
             po_unit.source = unit.value
         po_units.append(po_unit)
