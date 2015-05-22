@@ -217,6 +217,15 @@ cldr_plural_categories = [
 ]
 
 
+#: CLDR plural form rules from:
+#: http://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html
+cldr_plural_languages = {
+    'af': ['one', 'other'],
+    'ar': ['zero', 'one', 'two', 'few', 'many', 'other'],
+    'bm': ['other'],
+}
+
+
 def simplercode(code):
     """This attempts to simplify the given language code by ignoring country
     codes, for example.

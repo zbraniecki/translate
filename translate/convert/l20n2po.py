@@ -85,7 +85,7 @@ class l20n2po:
                         else:
                             pounit.target = translatedl20nfile.sourceindex[location][0].value
         return target_store
-        
+
 
 def convertl20n(inputfile, outputfile, templatefile,
                 pot=False, duplicatestyle="msgctxt"):
