@@ -3,6 +3,8 @@ print(sys.path);
 
 from translate.storage import base
 from l20n.format.parser import L20nParser
+import l20n.format.ast as ast
+from l20n.format.serializer import Serializer
 
 
 class l20nunit(base.TranslationUnit):
@@ -40,21 +42,13 @@ class l20nunit(base.TranslationUnit):
         self.id = new_id
 
     def getoutput(self):
-        if self.value_index:
-            values = []
-            for k in ['zero', 'one', 'two', 'few', 'many', 'other']:
-                if k in self.value:
-                    values.append("  %s: '%s'" % (k, self.value[k]))
+        id = ast.Identifier(self.id)
+        value = self.value
+        entity = ast.Entity(id, value)
 
-            return '''<%(key)s[@cldr.plural($%(extra)s)] {\n%(values)s\n}>''' % {
-                'values': "\n".join(values),
-                'extra': self.value_index[1],
-                'key': self.id
-            }
-        return '''<%(key)s "%(value)s">''' % {
-            'value': self.value,
-            'key': self.id
-        }
+        serializer = Serializer()
+
+        return serializer.dumpEntity(entity)
 
 class l20nfile(base.TranslationStore):
     UnitClass = l20nunit
@@ -74,7 +68,8 @@ class l20nfile(base.TranslationStore):
         for entry in ast.body:
             newl20n = l20nunit()
             newl20n.id = entry.id.name
-            newl20n.value = entry.value.content
+            newl20n.value = entry.value
+            newl20n.value_index = entry.index
 
             self.units.append(newl20n)
 

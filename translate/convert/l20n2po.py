@@ -16,6 +16,23 @@ class l20n2po:
     def __init__(self, blankmsgstr=False, duplicatestyle="msgctxt"):
         pass
 
+    def is_plural(self, index):
+        if index.type == 'CallExpression' and \
+           index.callee.type == 'PropertyExpression' and \
+           index.callee.exp.type == 'Identifier' and \
+           index.callee.exp.name == 'plural' and \
+           index.callee.idref.type == 'Global' and \
+           index.callee.idref.name.name == 'cldr':
+            return True
+        else:
+            return False
+
+    def get_hash_item(self, hash, key):
+        for hashItem in hash.items:
+            if hashItem.id.name == key:
+                return hashItem.value.source
+        return None
+
     def convertl20nunit(self, store, unit):
         po_units = []
 
@@ -28,15 +45,19 @@ class l20n2po:
             #
             # unit.value_index - [{'type': 'idOrVal', 'value': 'plural'}, 'n']
             # unit.value - {'one': 'value', 'many': 'value2'}
-            if unit.value_index[0]['value'] == 'plural':
+            if self.is_plural(unit.value_index[0]):
                 # While l20n could potentially have N forms we can only handle
                 # and only want two in Gettext. Since Gettext uses English
                 # forms we're using the same: 'one' and 'other'
-                po_unit.addnote("<l20n:plural>@cldr.plural($%s)</l20n>" % unit.value_index[1], "developer")
-                po_unit.source = [unit.value['one'], unit.value['other']]
+                po_unit.addnote("<l20n:plural>@cldr.plural($%s)</l20n>" % 
+                    unit.value_index[0].args[0].name.name, "developer")
+
+                hashItemOne = self.get_hash_item(unit.value, 'one')
+                hashItemOther = self.get_hash_item(unit.value, 'other')
+                po_unit.source = [hashItemOne, hashItemOther]
                 po_unit.target = ["", ""]
         else:
-            po_unit.source = unit.value
+            po_unit.source = unit.value.source
         po_units.append(po_unit)
 
         for attr in unit.attrs:
