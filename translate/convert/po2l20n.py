@@ -30,8 +30,6 @@ from translate.lang import data
 from translate.misc import quote
 from translate.storage import po, l20nformat
 
-import l20n.format.ast as ast
-
 L20N_PLURAL_RE = re.compile("<l20n:plural>@cldr.plural\(\$([^\s]+)\)</l20n>")
 
 
@@ -50,10 +48,10 @@ class po2l20n:
         pass
 
     def create_plural(self, variable):
-        glob = ast.Global(ast.Identifier('cldr'))
-        prop = ast.PropertyExpression(glob, 'plural')
-        call = ast.CallExpression(prop, [ast.Variable(ast.Identifier(variable))])
-        return call
+        return {
+          'name': '@cldr.plural',
+          'args': [{'type': 'variable', 'name': variable}]
+        }
 
     def convertunit(self, unit):
         l20n_unit = l20nformat.l20nunit()
@@ -64,7 +62,7 @@ class po2l20n:
             l20n_unit.value_index = [self.create_plural(
                 L20N_PLURAL_RE.findall(unit.getnotes("developer"))[0])]
 
-            l20n_unit.value = ast.Hash()
+            l20n_unit.value = {}
             if self.lang in data.cldr_plural_languages:
                 categories = data.cldr_plural_languages[self.lang]
             else:
@@ -76,13 +74,9 @@ class po2l20n:
                 logger.warning("Warning: PO plurals does not match expected "
                                "CLDR plurals")
             for category, text in zip(categories, unit.target.strings):
-                id = ast.Identifier(category)
-                value = ast.String(str(text))
-                defItem = False
-                hashItem = ast.HashItem(id, value, defItem)
-                l20n_unit.value.items.append(hashItem)
+                l20n_unit.value[category] = str(text)
         else:
-            l20n_unit.value = ast.String(unit.target)
+            l20n_unit.value = unit.target
         return l20n_unit
 
     def mergestore(self):

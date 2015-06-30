@@ -17,21 +17,35 @@ class l20n2po:
         pass
 
     def is_plural(self, index):
-        if index.type == 'CallExpression' and \
-           index.callee.type == 'PropertyExpression' and \
-           index.callee.exp.type == 'Identifier' and \
-           index.callee.exp.name == 'plural' and \
-           index.callee.idref.type == 'Global' and \
-           index.callee.idref.name.name == 'cldr':
+        if index['name'] == '@cldr.plural':
             return True
         else:
             return False
 
-    def get_hash_item(self, hash, key):
-        for hashItem in hash.items:
-            if hashItem.id.name == key:
-                return hashItem.value.source
-        return None
+    def convert_value(self, po_unit, value, value_index):
+        if isinstance(value, str):
+            po_unit.source = value
+        elif isinstance(value, dict):
+            if value_index:
+                # the value here may be a string or a hash
+                # if it's a hash it will look like this:
+                #
+                # unit.value_index - [{'type': 'idOrVal', 'value': 'plural'}, 'n']
+                # unit.value - {'one': 'value', 'many': 'value2'}
+                if self.is_plural(value_index[0]):
+                    # While l20n could potentially have N forms we can only handle
+                    # and only want two in Gettext. Since Gettext uses English
+                    # forms we're using the same: 'one' and 'other'
+                    po_unit.addnote("<l20n:plural>@cldr.plural($%s)</l20n>" %
+                        value_index[0]['args'][0]['name'], "developer")
+
+                    hashItemOne = value['one']
+                    hashItemOther = value['other']
+                    po_unit.source = [hashItemOne, hashItemOther]
+                    po_unit.target = ["", ""]
+        else:
+            return None
+        return po_unit
 
     def convertl20nunit(self, store, unit):
         po_units = []
@@ -39,26 +53,9 @@ class l20n2po:
         po_unit = po.pounit(encoding="UTF-8")
         po_unit.setid(unit.getid())
         po_unit.addlocation(unit.getid())
-        if unit.value_index:
-            # the value here may be a string or a hash
-            # if it's a hash it will look like this:
-            #
-            # unit.value_index - [{'type': 'idOrVal', 'value': 'plural'}, 'n']
-            # unit.value - {'one': 'value', 'many': 'value2'}
-            if self.is_plural(unit.value_index[0]):
-                # While l20n could potentially have N forms we can only handle
-                # and only want two in Gettext. Since Gettext uses English
-                # forms we're using the same: 'one' and 'other'
-                po_unit.addnote("<l20n:plural>@cldr.plural($%s)</l20n>" % 
-                    unit.value_index[0].args[0].name.name, "developer")
-
-                hashItemOne = self.get_hash_item(unit.value, 'one')
-                hashItemOther = self.get_hash_item(unit.value, 'other')
-                po_unit.source = [hashItemOne, hashItemOther]
-                po_unit.target = ["", ""]
-        else:
-            po_unit.source = unit.value.source
-        po_units.append(po_unit)
+        value = self.convert_value(po_unit, unit.value, unit.value_index)
+        if (value):
+            po_units.append(value)
 
         for attr in unit.attrs:
             po_unit = po.pounit(encoding="UTF-8")
@@ -66,8 +63,10 @@ class l20n2po:
             id = '%s.%s' % (unit.getid(), attr['id'])
             po_unit.addlocation(id)
             po_unit.setid(id)
-            po_unit.source = attr['value']
-            po_units.append(po_unit)
+
+            value = self.convert_value(po_unit, attr['value'], attr['index'])
+            if value:
+                po_units.append(po_unit)
         return po_units
 
     def convertstore(self, l20n_store):
