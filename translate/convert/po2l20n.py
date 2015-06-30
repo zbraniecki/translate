@@ -28,7 +28,7 @@ import warnings
 from translate.convert import accesskey, convert
 from translate.lang import data
 from translate.misc import quote
-from translate.storage import po, l20n
+from translate.storage import po, l20nformat
 
 
 L20N_PLURAL_RE = re.compile("<l20n:plural>@cldr.plural\(\$([^\s]+)\)</l20n>")
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 class po2l20n:
 
     def __init__(self, templatefile, inputstore, includefuzzy=False):
-        self.templatestore = l20n.l20nfile(templatefile)
+        self.templatestore = l20nformat.l20nfile(templatefile)
         self.inputstore = inputstore
         self.includefuzzy = includefuzzy
         self.lang = self.inputstore.gettargetlanguage()
@@ -49,7 +49,7 @@ class po2l20n:
         pass
 
     def convertunit(self, unit):
-        l20n_unit = l20n.l20nunit()
+        l20n_unit = l20nformat.l20nunit()
         if not unit.istranslated() and not self.includefuzzy:
             return None
         l20n_unit.setid(unit.getlocations()[0])
@@ -79,7 +79,7 @@ class po2l20n:
         pass
 
     def convertstore(self):
-        outputstore = l20n.l20nfile()
+        outputstore = l20nformat.l20nfile()
         for unit in self.inputstore.units:
             newunit = self.convertunit(unit)
             if newunit is not None:

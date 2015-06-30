@@ -7,7 +7,7 @@ for examples and usage instructions.
 """
 
 from translate.lang import data
-from translate.storage import po, l20n
+from translate.storage import po, l20nformat
 
 class l20n2po:
     """convert a .l20n file to a .po file for handling the
@@ -89,13 +89,13 @@ class l20n2po:
 
 def convertl20n(inputfile, outputfile, templatefile,
                 pot=False, duplicatestyle="msgctxt"):
-    inputstore = l20n.l20nfile(inputfile)
+    inputstore = l20nformat.l20nfile(inputfile)
     convertor = l20n2po(blankmsgstr=pot,
                         duplicatestyle=duplicatestyle)
     if templatefile is None:
         outputstore = convertor.convertstore(inputstore)
     else:
-        templatestore = l20n.l20nfile(templatefile)
+        templatestore = l20nformat.l20nfile(templatefile)
         outputstore = convertor.mergestore(templatestore, inputstore)
     if outputstore.isempty():
         return 0

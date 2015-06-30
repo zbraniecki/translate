@@ -1,5 +1,9 @@
+import sys
+print(sys.path);
+
 from translate.storage import base
-from l20nparser import L20nParser
+from l20n.format.parser import L20nParser
+
 
 class l20nunit(base.TranslationUnit):
     """Single L20n Entity"""
@@ -67,24 +71,12 @@ class l20nfile(base.TranslationStore):
         parser = L20nParser()
         ast = parser.parse(l20nsrc)
 
-        for entry in ast:
+        for entry in ast.body:
             newl20n = l20nunit()
-            newl20n.id = entry['$i']
-            newl20n.value = entry['$v']
+            newl20n.id = entry.id.name
+            newl20n.value = entry.value.content
 
-            if '$x' in entry:
-                newl20n.value_index = [{
-                    'type': 'idOrVal',
-                    'value': 'plural'
-                }, entry['$x'][1]]
             self.units.append(newl20n)
-
-            for key in entry.keys():
-                if key[0] != '$':
-                    self.add_attr(newl20n, key, entry[key])
-
-    def add_attr(self, unit, id, attr):
-        unit.attrs.append({'id': id, 'value': attr})
 
     def __str__(self):
         lines = []
